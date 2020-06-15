@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -19,25 +20,33 @@ type serverVersionCmd struct {
 	out io.Writer
 }
 
+const appLabel = "kubectl ingress-refresh"
+
+var version string
+
+// SetVersion set the application version for consumption in the output of the command.
+func SetVersion(v string) {
+	version = v
+}
+
 // NewRefreshCommand creates the command for rendering the Kubernetes server version.
 func NewRefreshCommand(streams genericclioptions.IOStreams) *cobra.Command {
-	helloWorldCmd := &serverVersionCmd{
+	ingressRefreshCmd := &serverVersionCmd{
 		out: streams.Out,
 	}
 
 	cmd := &cobra.Command{
-		Use:          "server-version",
-		Short:        "Prints Kubernetes server version",
+		Use:          "ingress-refresh",
+		Short:        "Deletes and recreates all ingress resources",
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if len(args) != 0 {
 				return errors.New("this command does not accept arguments")
 			}
-			return helloWorldCmd.run()
+			return ingressRefreshCmd.run()
 		},
 	}
 
-	cmd.AddCommand(newRefreshCmd(streams.Out))
 	return cmd
 }
 
@@ -47,7 +56,7 @@ func (sv *serverVersionCmd) run() error {
 		return err
 	}
 
-	_, err = fmt.Fprintf(sv.out, "Hello from Kubernetes server with version %s!\n", serverVersion)
+	_, err = fmt.Fprintf(sv.out, "%s!\n", serverVersion)
 	if err != nil {
 		return err
 	}
@@ -70,7 +79,7 @@ func refreshIngress() (string, error) {
 	}
 
 	ctx := context.Background()
-	iclient := clientset.NetworkingV1beta1().Ingresses("tlm-dev")
+	iclient := clientset.NetworkingV1beta1().Ingresses("global-identity")
 
 	ingressesList, err := iclient.List(ctx, v1.ListOptions{})
 	if err != nil {
@@ -79,25 +88,21 @@ func refreshIngress() (string, error) {
 
 	ingresses := ingressesList.Items
 	for _, ingress := range ingresses {
-		fmt.Println(ingress.Name)
 		iclient.Delete(ctx, ingress.Name, v1.DeleteOptions{})
-		// Debug
-		penisses, err := iclient.List(ctx, v1.ListOptions{})
-		if err != nil {
-			return "", err
-		}
-		fmt.Println(len(penisses.Items))
 	}
 
+	var report bytes.Buffer
 	for _, ingress := range ingresses {
 		clearIngress(&ingress)
-		_, err := iclient.Create(ctx, &ingress, v1.CreateOptions{})
+		ing, err := iclient.Create(ctx, &ingress, v1.CreateOptions{})
 		if err != nil {
 			return "", err
 		}
+		report.WriteString(fmt.Sprintf("%s\n", ing.Name))
+
 	}
 
-	return "DONE", nil
+	return report.String(), nil
 }
 
 func clearIngress(ingress *v1beta1.Ingress) {
