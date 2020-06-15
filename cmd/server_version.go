@@ -79,7 +79,7 @@ func refreshIngress() (string, error) {
 	}
 
 	ctx := context.Background()
-	iclient := clientset.NetworkingV1beta1().Ingresses("global-identity")
+	iclient := clientset.NetworkingV1beta1().Ingresses("test-ns")
 
 	ingressesList, err := iclient.List(ctx, v1.ListOptions{})
 	if err != nil {
