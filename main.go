@@ -3,15 +3,16 @@ package main
 import (
 	"os"
 
-	"irefresher/cmd"
+	"refresher/cmd"
 
+	"github.com/spf13/pflag"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-var version = "undefined"
-
 func main() {
-	cmd.SetVersion(version)
+	// cmd.SetVersion(version)
+	flags := pflag.NewFlagSet("kubectl-ns", pflag.ExitOnError)
+	pflag.CommandLine = flags
 
 	refreshCmd := cmd.NewRefreshCommand(genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr})
 	if err := refreshCmd.Execute(); err != nil {
